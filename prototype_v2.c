@@ -6,7 +6,7 @@
 /*   By: mykle <mykle@42angouleme.fr>               +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/27 12:02:52 by mykle             #+#    #+#             */
-/*   Updated: 2025/01/14 20:52:25 by mrouves          ###   ########.fr       */
+/*   Updated: 2025/01/15 15:25:31 by mrouves          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,70 @@
 
 #define ECS_ALIVE 0x8000000000000000
 
+//	GENERIC COLLECTION
+typedef struct s_collection
+{
+	void		*data;
+	uint32_t	mem;
+	uint32_t	len;
+	uint32_t	cap;
+}	t_collection;
+
+bool	collection_create(t_collection *out, uint32_t mem, uint32_t cap)
+{
+	if (__builtin_expect(!out, 0))
+		return (false);
+	out->len = 0;
+	out->cap = cap;
+	out->mem = mem;
+	out->data = calloc(mem, cap);
+	return (out->data != NULL);
+}
+
+void	collection_destroy(t_collection *col, void (*del)(void *))
+{
+	if (__builtin_expect(!col || !col->data, 0))
+		return ;
+	while (del && col->cap--)
+		del(col->data + col->mem * col->cap);
+	free(col->data);
+	col->cap = 0;
+	col->len = 0;
+	col->mem = 0;
+	col->data = 0;
+}
+
+bool	collection_realloc(t_collection *col)
+{
+	uint32_t	prev;
+
+	if (__builtin_expect(!col || (col->cap == UINT32_MAX), 0))
+		return (false);
+	prev = col->cap;
+	col->cap <<= 1;
+	if (col->cap >> 1 != prev)
+		col->cap = UINT32_MAX;
+	col->data = reallocarray(col->data, col->cap, col->mem);
+	return (col->data != NULL);
+}
+
+void	collection_append(t_collection *col, void *ptr)
+{
+	if (__builtin_expect(!col || (col->len == UINT32_MAX)
+			|| (col->len >= col->cap && !collection_realloc(col)), 0))
+		return ;
+	memmove(col->data + (col->len++) * col->mem, ptr, col->mem);
+}
+
+void	collection_insert(t_collection *col, uint32_t index, void *ptr)
+{
+	if (__builtin_expect(!col || (col->len == UINT32_MAX)
+			|| (col->len >= col->cap && !collection_realloc(col)), 0))
+		return ;
+	memmove(col->data + (index + 1) * col->mem,
+		 col->data + index * col->mem,  col->mem);
+	memmove(col->data + index * col->mem, ptr, col->mem);
+}
 
 //
 //	DOUBLE LINKED LIST TYPE
